@@ -7,9 +7,8 @@ DatasetLT – Lightweight Multi-Layer Dataset Container
 =====================================================
 
 `DatasetLT` is a **single-file, R6-based** helper that keeps any number of
-numeric assays (RNA-seq, ATAC-seq, proteomics …) and their related
-embeddings / graphs / feature-level metadata in one tidy object – no
-hefty Bioconductor stack required.
+numeric assays and their related
+embeddings / graphs / feature-level metadata in one  object 
 
 Key features
 ------------
