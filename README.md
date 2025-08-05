@@ -35,7 +35,7 @@ Quick start – minimal toy workflow
 
 path <- "/dir/"   # change to any writable dir
 
-## 1 ── Create two tiny assays -----------------------------------------
+# Create two tiny assays -----------------------------------------
 rna  <- matrix(rnorm(30),  nrow = 6,
                dimnames = list(paste0("cell", 1:6),
                                paste0("gene", 1:5)))
@@ -44,10 +44,10 @@ atac <- matrix(rpois(30, 5), nrow = 6,
                dimnames = list(paste0("cell", 1:6),
                                paste0("peak", 1:5)))
 
-## 2 ── Instantiate the container with those assays --------------------
+# Instantiate the container with those assays --------------------
 dslt <- DatasetLT$new(list(rna = rna, atac = atac))
 
-## 3 ── Add embeddings for each assay ----------------------------------
+# Add embeddings for each assay ----------------------------------
 dslt$addEmbedding(
   "rna",
   names = c("pca", "tsne"),
@@ -69,7 +69,7 @@ dslt$addEmbedding(
                                  paste0("LSI", 1:2)))
 )
 
-## 4 ── Inspect what we now have ---------------------------------------
+#Inspect what we now have ---------------------------------------
 dslt$printLayerNames()
 #> Assays:
 #>   • rna, atac
@@ -79,17 +79,18 @@ dslt$printLayerNames()
 #> Graphs:
 #>   (none)
 
-## 5 ── Focus on RNA only ----------------------------------------------
+#Focus on RNA only ----------------------------------------------
 dslt$setActiveAssays("rna")
 
-## 6 ── Export the *active* layers -------------------------------------
+# Export the *active* layers -------------------------------------
 
-dslt$writeCsv(path)               # → /dir/rna.csv
-dslt$writeEmbeddingsCsv(path)     # → /dir/rna_pca.csv , rna_tsne.csv
+dslt$writeCsv(path)              
+dslt$writeEmbeddingsCsv(path)    
 
-## 7 ── Export *everything*, ignoring active filters -------------------
+## Export *everything*, ignoring active filters 
 dslt$writeCsv(path,          intersect = FALSE)  
-dslt$writeEmbeddingsCsv(path, intersect = FALSE) 
+##  write only pca embedding of the rna assay
+dslt$writeEmbeddingsCsv(path,embeddings=list(rna="pca") ,intersect = FALSE) 
 ```
 
 How the filters work
