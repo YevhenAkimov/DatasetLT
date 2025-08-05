@@ -102,15 +102,3 @@ How the filters work
 
 Rows physically removed by `filterSamples()` / `cleanup()` are gone
 regardless of the `intersect` flag.
-
-Documentation
--------------
-
-* **Vignette** – `vignette("DatasetLT", package = "DatasetLT")`
-* **Help** – `?DatasetLT` once the package is loaded.
-
-Issues & contributions
-----------------------
-
-Open an issue or pull request at  
-<https://github.com/YevhenAkimov/DatasetLT> – feedback is welcome!
