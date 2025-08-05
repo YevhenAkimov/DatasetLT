@@ -32,9 +32,8 @@ Quick start – minimal toy workflow
 ----------------------------------
 
 ```r
-library(DatasetLT)      # loads & installs R6 automatically
-set.seed(42)
-path <- "/Users/yevhenakimov/export2/"   # change to any writable dir
+
+path <- "/dir/"   # change to any writable dir
 
 ## 1 ── Create two tiny assays -----------------------------------------
 rna  <- matrix(rnorm(30),  nrow = 6,
@@ -84,13 +83,13 @@ dslt$printLayerNames()
 dslt$setActiveAssays("rna")
 
 ## 6 ── Export the *active* layers -------------------------------------
-#     creates 'export2/' if absent
-dslt$writeCsv(path)               # → …/export2/rna.csv
-dslt$writeEmbeddingsCsv(path)     # → …/export2/rna_pca.csv , rna_tsne.csv
+
+dslt$writeCsv(path)               # → /dir/rna.csv
+dslt$writeEmbeddingsCsv(path)     # → /dir/rna_pca.csv , rna_tsne.csv
 
 ## 7 ── Export *everything*, ignoring active filters -------------------
-dslt$writeCsv(path,          intersect = FALSE)   # → rna.csv, atac.csv
-dslt$writeEmbeddingsCsv(path, intersect = FALSE)  # → rna_pca.csv, rna_tsne.csv, atac_lsi.csv
+dslt$writeCsv(path,          intersect = FALSE)  
+dslt$writeEmbeddingsCsv(path, intersect = FALSE) 
 ```
 
 How the filters work
