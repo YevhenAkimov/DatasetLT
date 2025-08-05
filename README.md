@@ -19,12 +19,11 @@ Key features
 * “Active” filters: work on one assay at a time without touching others.  
 * Single-line CSV export – one file per layer.  
 
-Installation
+Loading package
 ------------
 
 ```r
-# install.packages("devtools")   # if needed
-devtools::install_github("YevhenAkimov/DatasetLT")
+source("https://raw.githubusercontent.com/YevhenAkimov/DatasetLT/main/DatasetLT.R")
 ```
 
 The helper auto-installs **R6** if it is missing.
