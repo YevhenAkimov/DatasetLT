@@ -480,7 +480,11 @@ getGraph = function(assay, name, force = FALSE) {
 },
 
 ## -------------------- CLEANUP & FILTERING -----------------------
-
+# cleanup : destructive, strict intersection
+# Validates that every embedding & graph covers all keep samples.
+# If any embedding/graph is missing a keep sample, it aborts with an error listing the gaps. Nothing is modified.
+# If validation passes, it subsets every layer (assays by rows; embeddings by rows; graphs by rows & cols) to keep.
+                      
 cleanup = function(samples = NULL, persist = TRUE) {
   if (length(self$assays) == 0)
     stop("Cleanup aborted: no assays have been added.")
@@ -511,7 +515,11 @@ cleanup = function(samples = NULL, persist = TRUE) {
   message("Cleanup complete: ", length(keep), " samples retained.")
   invisible(self)
 },
-
+  # filterSamples
+	#	Takes a character vector samples and subsets every stored layer (assays, embeddings, graphs) to those IDs that actually exist.
+	#	Keeps your requested order. Missing IDs are silently dropped.
+	#	If persist = TRUE (default), it also sets activeSamples <- intersect(samples, retained) where retained are the rows that still exist after subsetting.
+                      #It does not check cross-layer coverage; each layer is subset independently.
 filterSamples = function(samples, persist = TRUE) {
   stopifnot(is.character(samples), length(samples) > 0)
   ord_subset <- \(m) {
