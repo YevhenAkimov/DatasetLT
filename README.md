@@ -69,13 +69,13 @@ dslt$addGraph("drugs", input = demo_graph, names = "correlation")
 ```r
 # --- inspect dataset -------------------------------------------------------
 dslt$printLayerNames()
-Assays:
-  • drugs, facs, growth 
-Embeddings:
-  • drugs: pca, tsne
-  • facs: pca
-Graphs:
-  • drugs: correlation
+#Assays:
+#  • drugs, facs, growth 
+#Embeddings:
+#  • drugs: pca, tsne
+#  • facs: pca
+#Graphs:
+#  • drugs: correlation
 
 # We can set active assays to work with, that ensure consistent output of data - only intersect and ordered  barcodes are returned when data is queried
 dslt$setActiveAssays(c("drugs","facs") )  
