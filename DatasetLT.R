@@ -146,7 +146,7 @@ DatasetLT <- R6::R6Class(
     #' @description Add **one or many embeddings** under a single assay.
     #' @inheritParams addAssay
     #' @param assay Name of the assay that owns the embeddings.
-    addEmbedding = function(assay, names, input) {
+    addEmbedding = function(assay, input, names=NULL) {
       stopifnot(
         is.character(assay), length(assay) == 1,
         assay %in% base::names(self$assays)
@@ -197,7 +197,7 @@ DatasetLT <- R6::R6Class(
     #' @description Add **one or many graphs** (square adjacency /
     #'   distance matrices) under a single assay.
     #' @inheritParams addEmbedding
-    addGraph = function(assay, names, input) {
+    addGraph = function(assay,  input, names=NULL) {
       stopifnot(
         is.character(assay), length(assay) == 1,
         assay %in% base::names(self$assays)
