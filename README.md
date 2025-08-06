@@ -69,6 +69,14 @@ dslt$addGraph("drugs", input = demo_graph, names = "correlation")
 ```r
 # --- inspect dataset -------------------------------------------------------
 dslt$printLayerNames()
+Assays:
+  • drugs, facs, growth 
+Embeddings:
+  • drugs: pca, tsne
+  • facs: pca
+Graphs:
+  • drugs: correlation
+
 # We can set active assays to work with, that ensure consistent output of data - only intersect and ordered  barcodes are returned when data is queried
 dslt$setActiveAssays(c("drugs","facs") )  
 
@@ -91,7 +99,7 @@ drugs_graph <- dslt$getGraph(assay="drugs", name="pca")
 
 
 # --- active samples vs destructive filtering --------------------------------
-```r
+
 # Assume we have additional filters for samples (e.g., barcodes), by setting active samples we implement additional level of filtering
 dslt$setActiveSamples(c("barcode2","barcode3","barcode5"))  # non-destructive preference
 dslt$currentSamples()                               # returns sample IDs that are going to be returned on queries
