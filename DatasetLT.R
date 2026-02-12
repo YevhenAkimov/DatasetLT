@@ -1,4 +1,5 @@
-###v0.1
+
+
 .ensure_packages <- function(pkgs) {
   stopifnot(is.character(pkgs), length(pkgs) > 0)
   
@@ -146,14 +147,68 @@ DatasetLT <- R6::R6Class(
     #' @description Add **one or many embeddings** under a single assay.
     #' @inheritParams addAssay
     #' @param assay Name of the assay that owns the embeddings.
-    addEmbedding = function(assay, input, names=NULL) {
+    #' @param copy_assay_on_mismatch Logical. If `FALSE` (default), sample
+    #'   mismatch between assay and embedding is an error. If `TRUE`, create
+    #'   a derived assay on sample intersection and add the embedding there.
+    #' @param new_assay_name Optional character scalar. Name of the derived
+    #'   assay used when `copy_assay_on_mismatch = TRUE`.
+    addEmbedding = function(assay,
+                            input,
+                            names = NULL,
+                            copy_assay_on_mismatch = FALSE,
+                            new_assay_name = NULL) {
       stopifnot(
         is.character(assay), length(assay) == 1,
-        assay %in% base::names(self$assays)
+        assay %in% base::names(self$assays),
+        is.logical(copy_assay_on_mismatch), length(copy_assay_on_mismatch) == 1,
+        is.null(new_assay_name) ||
+          (is.character(new_assay_name) && length(new_assay_name) == 1 && nzchar(new_assay_name))
       )
-      
-      if (is.null(self$embeddings[[assay]]))
-        self$embeddings[[assay]] <- list()
+
+      add_one <- function(mat, key) {
+        assay_samples <- rownames(self$assays[[assay]])
+        if (!identical(rownames(mat), assay_samples)) {
+          if (!copy_assay_on_mismatch) {
+            private$.stop_layer_mismatch(
+              layer_type = "Embedding",
+              layer_name = key,
+              assay = assay,
+              expected_rule = "embedding row names must exactly match assay sample IDs (same set and same order)."
+            )
+          }
+          derived <- private$.create_intersection_assay(
+            source_assay = assay,
+            layer_samples = rownames(mat),
+            layer_type = "embedding",
+            layer_name = key,
+            new_assay_name = new_assay_name
+          )
+          target_assay <- derived$assay
+          keep <- derived$keep
+          if (is.null(self$embeddings[[target_assay]]))
+            self$embeddings[[target_assay]] <- list()
+          self$embeddings[[target_assay]][[key]] <- mat[keep, , drop = FALSE]
+          message(
+            sprintf(
+              "Embedding '%s' mismatch detected for assay '%s'; created derived assay '%s' on %d intersected samples.",
+              key, assay, target_assay, length(keep)
+            )
+          )
+          return(invisible(NULL))
+        }
+
+        if (is.null(self$embeddings[[assay]]))
+          self$embeddings[[assay]] <- list()
+        if (!is.null(self$embeddings[[assay]][[key]])) {
+          warning(
+            sprintf("Embedding '%s' for assay '%s' existed and was replaced.",
+                    key, assay),
+            call. = FALSE
+          )
+        }
+        self$embeddings[[assay]][[key]] <- mat
+        invisible(NULL)
+      }
       
       if (private$.is_bulk(input)) {
         keys <- private$.resolve_names_param(
@@ -166,14 +221,7 @@ DatasetLT <- R6::R6Class(
             input[[i]],
             what = sprintf("embedding '%s' (assay '%s')", keys[i], assay)
           )
-          if (!is.null(self$embeddings[[assay]][[keys[i]]])) {
-            warning(
-              sprintf("Embedding '%s' for assay '%s' existed and was replaced.",
-                      keys[i], assay),
-              call. = FALSE
-            )
-          }
-          self$embeddings[[assay]][[keys[i]]] <- mat
+          add_one(mat, keys[i])
         }
         return(invisible(self))
       }
@@ -183,28 +231,25 @@ DatasetLT <- R6::R6Class(
       mat <- private$toNumericMatrix(
         input, what = sprintf("embedding '%s' (assay '%s')", key, assay)
       )
-      if (!is.null(self$embeddings[[assay]][[key]])) {
-        warning(
-          sprintf("Embedding '%s' for assay '%s' existed and was replaced.",
-                  key, assay),
-          call. = FALSE
-        )
-      }
-      self$embeddings[[assay]][[key]] <- mat
+      add_one(mat, key)
       invisible(self)
     },
     
     #' @description Add **one or many graphs** (square adjacency /
     #'   distance matrices) under a single assay.
     #' @inheritParams addEmbedding
-    addGraph = function(assay,  input, names=NULL) {
+    addGraph = function(assay,
+                        input,
+                        names = NULL,
+                        copy_assay_on_mismatch = FALSE,
+                        new_assay_name = NULL) {
       stopifnot(
         is.character(assay), length(assay) == 1,
-        assay %in% base::names(self$assays)
+        assay %in% base::names(self$assays),
+        is.logical(copy_assay_on_mismatch), length(copy_assay_on_mismatch) == 1,
+        is.null(new_assay_name) ||
+          (is.character(new_assay_name) && length(new_assay_name) == 1 && nzchar(new_assay_name))
       )
-      
-      if (is.null(self$graphs[[assay]]))
-        self$graphs[[assay]] <- list()
       
       check_graph <- function(mat, nm) {
         if (nrow(mat) != ncol(mat))
@@ -217,6 +262,51 @@ DatasetLT <- R6::R6Class(
                        nm, assay))
         if (anyDuplicated(rownames(mat)))
           stop(sprintf("Graph '%s' (assay '%s') has duplicate row/col names.", nm, assay))
+      }
+
+      add_one <- function(mat, key) {
+        assay_samples <- rownames(self$assays[[assay]])
+        if (!identical(rownames(mat), assay_samples)) {
+          if (!copy_assay_on_mismatch) {
+            private$.stop_layer_mismatch(
+              layer_type = "Graph",
+              layer_name = key,
+              assay = assay,
+              expected_rule = "graph row and column names must exactly match assay sample IDs (same set and same order)."
+            )
+          }
+          derived <- private$.create_intersection_assay(
+            source_assay = assay,
+            layer_samples = rownames(mat),
+            layer_type = "graph",
+            layer_name = key,
+            new_assay_name = new_assay_name
+          )
+          target_assay <- derived$assay
+          keep <- derived$keep
+          if (is.null(self$graphs[[target_assay]]))
+            self$graphs[[target_assay]] <- list()
+          self$graphs[[target_assay]][[key]] <- mat[keep, keep, drop = FALSE]
+          message(
+            sprintf(
+              "Graph '%s' mismatch detected for assay '%s'; created derived assay '%s' on %d intersected samples.",
+              key, assay, target_assay, length(keep)
+            )
+          )
+          return(invisible(NULL))
+        }
+
+        if (is.null(self$graphs[[assay]]))
+          self$graphs[[assay]] <- list()
+        if (!is.null(self$graphs[[assay]][[key]])) {
+          warning(
+            sprintf("Graph '%s' for assay '%s' existed and was replaced.",
+                    key, assay),
+            call. = FALSE
+          )
+        }
+        self$graphs[[assay]][[key]] <- mat
+        invisible(NULL)
       }
       
       if (private$.is_bulk(input)) {
@@ -231,14 +321,7 @@ DatasetLT <- R6::R6Class(
             what = sprintf("graph '%s' (assay '%s')", keys[i], assay)
           )
           check_graph(mat, keys[i])
-          if (!is.null(self$graphs[[assay]][[keys[i]]])) {
-            warning(
-              sprintf("Graph '%s' for assay '%s' existed and was replaced.",
-                      keys[i], assay),
-              call. = FALSE
-            )
-          }
-          self$graphs[[assay]][[keys[i]]] <- mat
+          add_one(mat, keys[i])
         }
         return(invisible(self))
       }
@@ -249,14 +332,7 @@ DatasetLT <- R6::R6Class(
         input, what = sprintf("graph '%s' (assay '%s')", key, assay)
       )
       check_graph(mat, key)
-      if (!is.null(self$graphs[[assay]][[key]])) {
-        warning(
-          sprintf("Graph '%s' for assay '%s' existed and was replaced.",
-                  key, assay),
-          call. = FALSE
-        )
-      }
-      self$graphs[[assay]][[key]] <- mat
+      add_one(mat, key)
       invisible(self)
       },
     ## ----------------------------- SUMMARY ----------------------------------
@@ -820,6 +896,90 @@ private = list(
       stop("Duplicate ", what, " are not allowed: ",
            paste(unique(keys[duplicated(keys)]), collapse = ", "))
   },
+
+  .stop_layer_mismatch = function(layer_type, layer_name, assay, expected_rule) {
+    stop(
+      sprintf(
+        "%s '%s' mismatch detected for assay '%s'. Expected sample consistency rule: %s Enable copy_assay_on_mismatch = TRUE to create a derived assay from sample intersection.",
+        layer_type, layer_name, assay, expected_rule
+      ),
+      call. = FALSE
+    )
+  },
+
+  .resolve_intersection_assay_name = function(source_assay,
+                                              new_assay_name = NULL,
+                                              layer_type = "layer") {
+    if (!is.null(new_assay_name)) {
+      if (!(is.character(new_assay_name) &&
+            length(new_assay_name) == 1 &&
+            nzchar(new_assay_name))) {
+        stop("new_assay_name must be a non-empty character scalar.", call. = FALSE)
+      }
+      if (identical(new_assay_name, source_assay)) {
+        stop(
+          "new_assay_name must differ from the source assay name when using copy_assay_on_mismatch = TRUE.",
+          call. = FALSE
+        )
+      }
+      if (new_assay_name %in% base::names(self$assays)) {
+        stop("Cannot create derived assay '", new_assay_name,
+             "': assay already exists.", call. = FALSE)
+      }
+      return(new_assay_name)
+    }
+
+    prefix <- sprintf("%s__%s_intersection", source_assay, tolower(layer_type))
+    candidate <- prefix
+    i <- 1L
+    while (candidate %in% base::names(self$assays)) {
+      candidate <- sprintf("%s_%d", prefix, i)
+      i <- i + 1L
+    }
+    candidate
+  },
+
+  .create_intersection_assay = function(source_assay,
+                                        layer_samples,
+                                        layer_type,
+                                        layer_name,
+                                        new_assay_name = NULL) {
+    layer_label <- paste0(
+      toupper(substr(layer_type, 1, 1)),
+      substr(layer_type, 2, nchar(layer_type))
+    )
+    assay_samples <- rownames(self$assays[[source_assay]])
+    keep <- assay_samples[assay_samples %in% layer_samples]
+    if (length(keep) == 0) {
+      stop(
+        sprintf(
+          "%s '%s' mismatch detected for assay '%s': sample intersection is empty, cannot create a derived assay.",
+          layer_label, layer_name, source_assay
+        ),
+        call. = FALSE
+      )
+    }
+
+    target_assay <- private$.resolve_intersection_assay_name(
+      source_assay = source_assay,
+      new_assay_name = new_assay_name,
+      layer_type = layer_type
+    )
+
+    self$assays[[target_assay]] <- self$assays[[source_assay]][keep, , drop = FALSE]
+
+    if (!is.null(self$columnMetadata[[source_assay]]))
+      self$columnMetadata[[target_assay]] <- self$columnMetadata[[source_assay]]
+
+    if (self$hasActiveFlag &&
+        length(self$activeAssays) > 0 &&
+        source_assay %in% self$activeAssays &&
+        !(target_assay %in% self$activeAssays)) {
+      self$activeAssays <- c(self$activeAssays, target_assay)
+    }
+
+    list(assay = target_assay, keep = keep)
+  },
   
   .base_samples = function(ignore_active_samples = FALSE) {
     if (length(self$assays) == 0)
@@ -913,3 +1073,159 @@ private = list(
   }
 )
 )
+
+
+#' Upgrade a legacy DatasetLT object to the current class behavior
+#'
+#' Rebuilds a fresh `DatasetLT` object from an existing DatasetLT-like
+#' object (or `.rds` path), re-adding assays, metadata, embeddings and
+#' graphs through current methods.
+#'
+#' @param old A legacy DatasetLT-like object (with `$assays`) or a path
+#'   to an `.rds` file containing one.
+#' @param copy_assay_on_mismatch Logical. Passed to `addEmbedding()` and
+#'   `addGraph()` during migration.
+#' @param preserve_filters Logical. If `TRUE`, active filter fields are
+#'   copied where possible.
+#' @return A new `DatasetLT` object migrated with current logic.
+upgradeLegacyDatasetLT <- function(old,
+                                   copy_assay_on_mismatch = FALSE,
+                                   preserve_filters = TRUE) {
+  stopifnot(
+    is.logical(copy_assay_on_mismatch), length(copy_assay_on_mismatch) == 1,
+    is.logical(preserve_filters), length(preserve_filters) == 1
+  )
+
+  if (is.character(old) && length(old) == 1 && file.exists(old))
+    old <- readRDS(old)
+
+  assays <- tryCatch(old$assays, error = function(e) NULL)
+  if (is.null(assays) || !is.list(assays) || is.null(names(assays)) || any(names(assays) == "")) {
+    stop(
+      "`old` must be a DatasetLT-like object with a named `$assays` list, ",
+      "or a path to an `.rds` file containing one.",
+      call. = FALSE
+    )
+  }
+
+  out <- DatasetLT$new()
+
+  for (a in names(assays)) {
+    tryCatch(
+      out$addAssay(names = a, input = assays[[a]]),
+      error = function(e) {
+        stop(
+          sprintf("Failed while migrating assay '%s': %s", a, conditionMessage(e)),
+          call. = FALSE
+        )
+      }
+    )
+  }
+
+  copy_named_entries <- function(src, kind) {
+    if (!is.list(src) || length(src) == 0)
+      return(invisible(NULL))
+
+    for (a in names(src)) {
+      if (!(a %in% names(out$assays)))
+        next
+      entries <- src[[a]]
+      if (is.null(entries) || !is.list(entries) || length(entries) == 0)
+        next
+      if (is.null(names(entries)) || any(names(entries) == "")) {
+        stop(
+          sprintf("Cannot migrate unnamed %s entries for assay '%s'.", kind, a),
+          call. = FALSE
+        )
+      }
+
+      for (nm in names(entries)) {
+        entry <- entries[[nm]]
+        if (kind == "columnMetadata") {
+          tryCatch(
+            out$addColumnMetadata(assay = a, name = nm, df = entry),
+            error = function(e) {
+              stop(
+                sprintf(
+                  "Failed while migrating columnMetadata '%s' in assay '%s': %s",
+                  nm, a, conditionMessage(e)
+                ),
+                call. = FALSE
+              )
+            }
+          )
+        } else if (kind == "embedding") {
+          tryCatch(
+            out$addEmbedding(
+              assay = a,
+              input = entry,
+              names = nm,
+              copy_assay_on_mismatch = copy_assay_on_mismatch
+            ),
+            error = function(e) {
+              stop(
+                sprintf(
+                  "Failed while migrating embedding '%s' in assay '%s': %s",
+                  nm, a, conditionMessage(e)
+                ),
+                call. = FALSE
+              )
+            }
+          )
+        } else if (kind == "graph") {
+          tryCatch(
+            out$addGraph(
+              assay = a,
+              input = entry,
+              names = nm,
+              copy_assay_on_mismatch = copy_assay_on_mismatch
+            ),
+            error = function(e) {
+              stop(
+                sprintf(
+                  "Failed while migrating graph '%s' in assay '%s': %s",
+                  nm, a, conditionMessage(e)
+                ),
+                call. = FALSE
+              )
+            }
+          )
+        }
+      }
+    }
+
+    invisible(NULL)
+  }
+
+  copy_named_entries(tryCatch(old$columnMetadata, error = function(e) NULL), "columnMetadata")
+  copy_named_entries(tryCatch(old$embeddings,     error = function(e) NULL), "embedding")
+  copy_named_entries(tryCatch(old$graphs,         error = function(e) NULL), "graph")
+
+  if (preserve_filters) {
+    old_active_assays <- tryCatch(old$activeAssays, error = function(e) character())
+    old_active_samples <- tryCatch(old$activeSamples, error = function(e) character())
+    old_has_active_flag <- tryCatch(old$hasActiveFlag, error = function(e) FALSE)
+
+    if (is.null(old_active_assays))
+      old_active_assays <- character()
+    if (is.null(old_active_samples))
+      old_active_samples <- character()
+
+    old_active_assays <- as.character(old_active_assays)
+    keep_active_assays <- old_active_assays[old_active_assays %in% names(out$assays)]
+    dropped_active_assays <- setdiff(old_active_assays, keep_active_assays)
+    if (length(dropped_active_assays)) {
+      warning(
+        "Dropped unknown active assay(s) during migration: ",
+        paste(dropped_active_assays, collapse = ", "),
+        call. = FALSE
+      )
+    }
+
+    out$activeAssays <- keep_active_assays
+    out$activeSamples <- as.character(old_active_samples)
+    out$hasActiveFlag <- isTRUE(old_has_active_flag) && length(keep_active_assays) > 0
+  }
+
+  out
+}
