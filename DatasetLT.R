@@ -1,4 +1,4 @@
-
+###v0.1
 .ensure_packages <- function(pkgs) {
   stopifnot(is.character(pkgs), length(pkgs) > 0)
   
