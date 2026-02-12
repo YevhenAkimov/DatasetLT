@@ -11,7 +11,7 @@ Designed for storing multimodal lineage tracing experiments
   
 ## Load
 ```r
-source("https://raw.githubusercontent.com/YevhenAkimov/DatasetLT/main/DatasetLT.R")
+source("https://raw.githubusercontent.com/YevhenAkimov/DatasetLT/v0.1/DatasetLT.R")
 ```
 ---
   
